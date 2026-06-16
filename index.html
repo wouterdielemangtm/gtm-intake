@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>GTM Collective — Pre-discovery intake</title>
+
+<!-- Fonts: Questrial stands in for Century Gothic (geometric), DM Sans body, DM Mono utility -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Questrial&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<!-- Supabase (explicit UMD build -> window.supabase.createClient) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- PDF generation -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+<style>
+:root{
+  --ink:#120E19;            /* GTM Collective primary */
+  --gtm-orange:#F87B22;     /* GTM Collective secondary (fallback brand) */
+  --brand:#F87B22;          /* per-client, overridden at runtime */
+  --brand-contrast:#ffffff; /* text on brand */
+  --brand-tint:rgba(248,123,34,.10);
+  --brand-tint-strong:rgba(248,123,34,.16);
+  --paper:#ffffff;
+  --muted:#6b6675;
+  --line:#e9e7ee;
+  --field-bg:#f7f6f9;
+  --display:"Questrial","Century Gothic",sans-serif;
+  --body:"DM Sans",sans-serif;
+  --mono:"DM Mono",monospace;
+  --ease:cubic-bezier(.22,.61,.36,1);
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:var(--body);
+  color:var(--ink);
+  background:var(--paper);
+  -webkit-font-smoothing:antialiased;
+  overflow:hidden;
+}
+button{font-family:inherit;cursor:pointer}
+input,textarea{font-family:inherit}
+
+/* ---------- App shell ---------- */
+#app{height:100dvh;display:flex;flex-direction:column}
+
+/* progress rail */
+#progress{
+  position:fixed;top:0;left:0;right:0;height:5px;background:var(--line);z-index:40;
+}
+#progress-bar{
+  height:100%;width:0;background:var(--brand);
+  transition:width .55s var(--ease);
+  border-radius:0 3px 3px 0;
+}
+
+/* top meta bar */
+#topbar{
+  position:fixed;top:0;left:0;right:0;height:64px;z-index:30;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 clamp(18px,4vw,40px);pointer-events:none;
+}
+.brandmark{display:flex;align-items:center;gap:10px;pointer-events:auto}
+.brandmark .dot{width:11px;height:11px;border-radius:50%;background:var(--brand)}
+.brandmark .name{font-family:var(--display);font-size:15px;letter-spacing:.02em}
+.brandmark .name b{font-weight:400}
+.meta-right{display:flex;align-items:center;gap:16px;pointer-events:auto}
+#counter{font-family:var(--mono);font-size:12.5px;color:var(--muted);letter-spacing:.02em}
+#timeleft{font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+#timeleft b{color:var(--brand);font-weight:500}
+
+/* stage: holds one screen at a time */
+#stage{flex:1;position:relative;overflow:hidden}
+.screen{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  padding:88px clamp(20px,7vw,80px) 120px;
+  overflow-y:auto;
+}
+.screen-inner{width:100%;max-width:680px}
+
+/* enter/exit transitions */
+.screen.enter{animation:slideIn .5s var(--ease) both}
+.screen.exit-up{animation:slideOutUp .38s var(--ease) both}
+.screen.exit-down{animation:slideOutDown .38s var(--ease) both}
+.screen.enter-down{animation:slideInDown .5s var(--ease) both}
+@keyframes slideIn{from{opacity:0;transform:translateY(34px)}to{opacity:1;transform:none}}
+@keyframes slideInDown{from{opacity:0;transform:translateY(-34px)}to{opacity:1;transform:none}}
+@keyframes slideOutUp{from{opacity:1;transform:none}to{opacity:0;transform:translateY(-34px)}}
+@keyframes slideOutDown{from{opacity:1;transform:none}to{opacity:0;transform:translateY(34px)}}
+
+/* ghost section letter */
+.ghost{
+  position:absolute;right:clamp(-10px,2vw,40px);top:50%;transform:translateY(-50%);
+  font-family:var(--display);font-size:min(46vh,420px);line-height:.8;
+  color:var(--brand);opacity:.06;pointer-events:none;user-select:none;z-index:0;
+}
+
+/* ---------- Question typography ---------- */
+.eyebrow{
+  font-family:var(--mono);font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--brand);margin-bottom:18px;display:flex;align-items:center;gap:9px;
+}
+.eyebrow .qno{color:var(--muted)}
+.qtext{
+  font-family:var(--display);font-weight:400;
+  font-size:clamp(26px,4.2vw,40px);line-height:1.15;letter-spacing:-.01em;
+  margin-bottom:10px;position:relative;z-index:1;
+}
+.qhelp{font-size:16px;color:var(--muted);line-height:1.5;margin-bottom:30px;max-width:560px}
+.qtext + .field, .qtext + .options{margin-top:34px}
+
+/* text / textarea fields */
+.field{position:relative;z-index:1}
+.field-line{
+  width:100%;border:0;border-bottom:2px solid var(--line);
+  background:transparent;font-size:clamp(20px,2.6vw,26px);
+  padding:8px 2px 12px;color:var(--ink);transition:border-color .25s var(--ease);
+}
+.field-line::placeholder{color:#c3c0cb}
+.field-line:focus{outline:none;border-color:var(--brand)}
+.field-adorn{position:relative;display:flex;align-items:baseline;gap:10px}
+.field-adorn .sym{font-size:clamp(20px,2.6vw,26px);color:var(--muted);font-family:var(--mono)}
+.field-area{
+  width:100%;border:2px solid var(--line);border-radius:14px;background:var(--field-bg);
+  font-size:18px;line-height:1.55;padding:18px 18px;color:var(--ink);resize:none;min-height:130px;
+  transition:border-color .25s var(--ease),background .25s var(--ease);
+}
+.field-area:focus{outline:none;border-color:var(--brand);background:#fff}
+
+/* option pills (single / multi) */
+.options{display:flex;flex-direction:column;gap:12px;position:relative;z-index:1;max-width:560px}
+.opt{
+  display:flex;align-items:center;gap:14px;width:100%;text-align:left;
+  background:var(--field-bg);border:2px solid var(--line);border-radius:14px;
+  padding:16px 18px;font-size:17px;color:var(--ink);
+  transition:border-color .18s var(--ease),background .18s var(--ease),transform .12s var(--ease);
+}
+.opt:hover{border-color:var(--brand);background:var(--brand-tint)}
+.opt.sel{border-color:var(--brand);background:var(--brand-tint-strong)}
+.opt .key{
+  font-family:var(--mono);font-size:12px;width:26px;height:26px;border-radius:7px;
+  border:1.5px solid var(--line);display:flex;align-items:center;justify-content:center;
+  color:var(--muted);flex:none;transition:all .18s var(--ease);
+}
+.opt.sel .key{background:var(--brand);border-color:var(--brand);color:var(--brand-contrast)}
+.opt:hover .key{border-color:var(--brand)}
+.opt .lbl{flex:1}
+.opt .check{opacity:0;color:var(--brand);font-size:18px;transition:opacity .18s}
+.opt.sel .check{opacity:1}
+
+/* "other" inline input */
+.other-wrap{margin-top:4px}
+.other-input{
+  width:100%;border:2px solid var(--line);border-radius:14px;background:var(--field-bg);
+  font-size:16px;padding:14px 16px;color:var(--ink);transition:border-color .2s var(--ease);
+}
+.other-input:focus{outline:none;border-color:var(--brand);background:#fff}
+
+/* matrix (HubSpot licences) */
+.matrix{display:flex;flex-direction:column;gap:14px;position:relative;z-index:1}
+.mrow{display:grid;grid-template-columns:1.1fr 2fr;gap:14px;align-items:center}
+.mrow .mlabel{font-size:16px;font-weight:500}
+.mtier{display:flex;gap:7px;flex-wrap:wrap}
+.tier{
+  border:1.5px solid var(--line);background:var(--field-bg);border-radius:9px;
+  padding:8px 13px;font-size:13.5px;color:var(--muted);
+  transition:all .15s var(--ease);
+}
+.tier:hover{border-color:var(--brand);color:var(--ink)}
+.tier.sel{background:var(--brand);border-color:var(--brand);color:var(--brand-contrast);font-weight:500}
+
+/* multi-box list (ICP names) */
+.listbox{display:flex;flex-direction:column;gap:12px;position:relative;z-index:1;max-width:540px}
+.list-row{display:flex;align-items:center;gap:14px}
+.list-num{font-family:var(--mono);font-size:13px;width:30px;height:30px;border-radius:8px;background:var(--brand-tint-strong);color:var(--brand);display:flex;align-items:center;justify-content:center;flex:none;font-weight:500}
+.list-input{flex:1;border:2px solid var(--line);border-radius:12px;background:var(--field-bg);font-size:17px;padding:13px 16px;color:var(--ink);transition:border-color .2s var(--ease),background .2s var(--ease)}
+.list-input:focus{outline:none;border-color:var(--brand);background:#fff}
+.add-row{margin-top:6px;align-self:flex-start;background:transparent;border:1.5px dashed var(--line);border-radius:12px;padding:11px 18px;font-size:14px;color:var(--muted);transition:all .18s var(--ease)}
+.add-row:hover{border-color:var(--brand);color:var(--brand)}
+
+/* footer actions */
+#footer{
+  position:fixed;bottom:0;left:0;right:0;z-index:30;
+  display:flex;align-items:center;gap:16px;
+  padding:18px clamp(20px,7vw,80px);
+  background:linear-gradient(to top,var(--paper) 60%,transparent);
+}
+.btn{
+  border:0;border-radius:12px;background:var(--brand);color:var(--brand-contrast);
+  font-size:16px;font-weight:500;padding:14px 28px;
+  display:inline-flex;align-items:center;gap:10px;
+  transition:transform .12s var(--ease),filter .15s var(--ease),opacity .2s;
+}
+.btn:hover{filter:brightness(1.06)}
+.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.4;cursor:not-allowed;filter:none}
+.btn-ghost{background:transparent;color:var(--muted);padding:14px 8px;font-weight:400}
+.btn-ghost:hover{color:var(--ink)}
+.kbd-hint{font-family:var(--mono);font-size:12px;color:var(--muted);margin-left:auto}
+.kbd-hint kbd{
+  font-family:var(--mono);background:var(--field-bg);border:1px solid var(--line);
+  border-radius:5px;padding:2px 7px;font-size:11px;
+}
+.navarrows{position:fixed;bottom:20px;right:clamp(20px,7vw,80px);z-index:31;display:flex;gap:6px}
+.arrow{
+  width:42px;height:38px;border-radius:9px;background:var(--brand);color:var(--brand-contrast);
+  border:0;display:flex;align-items:center;justify-content:center;font-size:16px;
+  transition:filter .15s,opacity .2s,transform .1s;
+}
+.arrow:disabled{opacity:.3;cursor:not-allowed}
+.arrow:hover:not(:disabled){filter:brightness(1.08)}
+.arrow:active:not(:disabled){transform:translateY(1px)}
+
+/* ---------- Welcome / section / done full-bleed screens ---------- */
+.fill{background:var(--brand);color:var(--brand-contrast)}
+.fill .qtext,.fill .big{color:var(--brand-contrast)}
+.fill .eyebrow{color:var(--brand-contrast);opacity:.8}
+.center-card{max-width:620px}
+.big{font-family:var(--display);font-size:clamp(34px,6vw,64px);line-height:1.05;letter-spacing:-.015em;margin-bottom:18px}
+.lead{font-size:clamp(17px,2.2vw,20px);line-height:1.55;opacity:.92;margin-bottom:34px;max-width:520px}
+.btn-on-fill{background:var(--brand-contrast);color:var(--brand)}
+.btn-on-fill:hover{filter:brightness(.96)}
+.section-index{font-family:var(--mono);font-size:13px;letter-spacing:.18em;text-transform:uppercase;opacity:.75;margin-bottom:26px}
+.spiced-strip{display:flex;gap:10px;margin-top:38px}
+.spiced-strip span{
+  font-family:var(--display);font-size:15px;width:38px;height:38px;border-radius:9px;
+  display:flex;align-items:center;justify-content:center;
+  border:1.5px solid rgba(255,255,255,.35);opacity:.55;
+}
+.spiced-strip span.on{opacity:1;background:var(--brand-contrast);color:var(--brand);border-color:transparent;font-weight:500}
+.spiced-strip span.done{opacity:.85;border-color:var(--brand-contrast)}
+
+/* confirm grid */
+.confirm-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px 22px;margin-top:30px}
+.confirm-grid .full{grid-column:1/-1}
+.cfield label{display:block;font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:7px}
+.cfield input{width:100%;border:2px solid var(--line);border-radius:12px;background:var(--field-bg);font-size:17px;padding:13px 15px;transition:border-color .2s}
+.cfield input:focus{outline:none;border-color:var(--brand);background:#fff}
+
+/* spinner */
+.spinner{width:46px;height:46px;border:4px solid var(--brand-tint-strong);border-top-color:var(--brand);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 28px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.substep{font-size:15px;color:var(--muted);margin-top:6px;transition:opacity .3s}
+
+/* error toast */
+.err{color:#c83a3a;font-size:14px;margin-top:14px;min-height:18px}
+
+/* ---------- Report (live + PDF source) ---------- */
+#report-root{position:fixed;inset:0;background:#f4f3f6;overflow-y:auto;z-index:60;display:none;padding:40px 20px}
+.report{
+  max-width:780px;margin:0 auto;background:#fff;border-radius:18px;overflow:hidden;
+  box-shadow:0 20px 60px rgba(18,14,25,.10);
+}
+.report-head{background:var(--brand);color:var(--brand-contrast);padding:40px 48px}
+.report-head .kicker{font-family:var(--mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;opacity:.85;margin-bottom:14px}
+.report-head h1{font-family:var(--display);font-size:32px;font-weight:400;line-height:1.1}
+.report-head .sub{margin-top:10px;opacity:.9;font-size:15px}
+.report-body{padding:40px 48px}
+.rsection{margin-bottom:34px}
+.rsection h2{font-family:var(--display);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--brand);font-weight:400;margin-bottom:16px;display:flex;align-items:center;gap:10px;border-bottom:1.5px solid var(--line);padding-bottom:10px}
+.rsection h2 .ltr{background:var(--brand);color:var(--brand-contrast);width:24px;height:24px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-size:12px}
+.qa{margin-bottom:18px;break-inside:avoid}
+.qa .q{font-size:13.5px;color:var(--muted);margin-bottom:5px;font-weight:500}
+.qa .a{font-size:16px;line-height:1.5;white-space:pre-wrap}
+.qa .a.empty{color:#b7b4bf;font-style:italic}
+.tag{display:inline-block;background:var(--brand-tint-strong);color:var(--ink);border-radius:7px;padding:4px 10px;font-size:13.5px;margin:3px 5px 0 0}
+.report-foot{padding:22px 48px 34px;border-top:1.5px solid var(--line);font-size:12.5px;color:var(--muted);display:flex;justify-content:space-between;align-items:center}
+.report-actions{max-width:780px;margin:0 auto 22px;display:flex;gap:12px;justify-content:flex-end}
+
+/* mobile */
+@media(max-width:600px){
+  .confirm-grid{grid-template-columns:1fr}
+  .mrow{grid-template-columns:1fr;gap:8px}
+  .kbd-hint{display:none}
+  .ghost{font-size:42vh;opacity:.05}
+  .report-head,.report-body,.report-foot{padding-left:24px;padding-right:24px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.001s!important;transition-duration:.05s!important}
+}
+</style>
+</head>
+<body>
+
+<div id="progress"><div id="progress-bar"></div></div>
+
+<div id="topbar">
+  <div class="brandmark">
+    <span class="dot"></span>
+    <span class="name" id="brandname"><b>GTM</b> Collective</span>
+  </div>
+  <div class="meta-right">
+    <span id="counter"></span>
+    <span id="timeleft"></span>
+  </div>
+</div>
+
+<div id="app">
+  <div id="stage"></div>
+</div>
+
+<div id="footer" style="display:none">
+  <button class="btn-ghost" id="backBtn">↑ Back</button>
+  <button class="btn" id="nextBtn">OK <span style="opacity:.7">↵</span></button>
+  <span class="kbd-hint">press <kbd>Enter ↵</kbd></span>
+</div>
+
+<!-- live report view -->
+<div id="report-root">
+  <div class="report-actions">
+    <button class="btn" id="dlPdf">Download PDF</button>
+  </div>
+  <div class="report" id="report"></div>
+</div>
+
+<script>
+/* =========================================================================
+   CONFIG  — set per deployment, or override via URL params.
+   Link pattern Wouter sends a prospect:
+   ...?client=howspace&brand=492390&first=Jane&last=Doe&company=Howspace&email=jane@howspace.com
+   Report view:  ...?report=<submission_id>
+   ========================================================================= */
+const CONFIG = {
+  // Supabase — URL is filled in. Paste your anon/publishable key below (Settings → API Keys in the gtm-audit project).
+  SUPABASE_URL:  'https://ngrcyprtoesdvibfhjvx.supabase.co',
+  SUPABASE_ANON: 'PASTE-YOUR-ANON-KEY-HERE',
+  TABLE:         'intake_submissions',
+
+  // Vercel serverless endpoint that emails the PDF (see deployment notes)
+  EMAIL_ENDPOINT: '/api/send-report',
+
+  // Default brand if no ?brand= param (GTM orange)
+  DEFAULT_BRAND: 'F87B22',
+
+  // Default pre-fill (you can also pass via URL)
+  prefill: { first:'', last:'', company:'', email:'' },
+  clientName: 'GTM Collective',
+  clientSlug: 'demo'
+};
+
+/* ---------- URL params ---------- */
+const P = new URLSearchParams(location.search);
+const get = (k,d='')=>P.get(k)??d;
+CONFIG.clientSlug = get('client', CONFIG.clientSlug);
+CONFIG.prefill = {
+  first:   get('first',   CONFIG.prefill.first),
+  last:    get('last',    CONFIG.prefill.last),
+  company: get('company', CONFIG.prefill.company),
+  email:   get('email',   CONFIG.prefill.email),
+};
+const BRAND_HEX = (get('brand', CONFIG.DEFAULT_BRAND)).replace('#','');
+
+/* ---------- Brand application ---------- */
+function hexToRgb(h){ h=h.replace('#',''); if(h.length===3)h=h.split('').map(c=>c+c).join(''); const n=parseInt(h,16); return {r:(n>>16)&255,g:(n>>8)&255,b:n&255}; }
+function luminance({r,g,b}){ const a=[r,g,b].map(v=>{v/=255; return v<=.03928? v/12.92 : Math.pow((v+.055)/1.055,2.4);}); return .2126*a[0]+.7152*a[1]+.0722*a[2]; }
+function applyBrand(hex){
+  let h=hex; if(!/^[0-9a-fA-F]{3,6}$/.test(h)) h=CONFIG.DEFAULT_BRAND;
+  const rgb=hexToRgb(h);
+  const contrast = luminance(rgb) > .55 ? '#120E19' : '#ffffff';
+  const root=document.documentElement.style;
+  root.setProperty('--brand', '#'+h);
+  root.setProperty('--brand-contrast', contrast);
+  root.setProperty('--brand-tint', `rgba(${rgb.r},${rgb.g},${rgb.b},.10)`);
+  root.setProperty('--brand-tint-strong', `rgba(${rgb.r},${rgb.g},${rgb.b},.16)`);
+}
+applyBrand(BRAND_HEX);
+if(CONFIG.clientName) document.getElementById('brandname').innerHTML = '<b>GTM</b> Collective';
+
+/* ---------- Supabase client (graceful if unconfigured) ---------- */
+let sb=null;
+const SUPA_READY = !CONFIG.SUPABASE_URL.includes('YOUR-PROJECT') && window.supabase;
+if(SUPA_READY){ try{ sb = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON); }catch(e){ console.warn('Supabase init failed',e); } }
+
+/* =========================================================================
+   SECTIONS + QUESTIONS  (SPICED)
+   ========================================================================= */
+const SECTIONS = {
+  S:  { letter:'S',   name:'Situation',      blurb:'Where your revenue engine stands today — the numbers, the team, the stack.' },
+  P:  { letter:'P',   name:'Pain',           blurb:'The challenges worth solving, in your own words.' },
+  I:  { letter:'I',   name:'Impact',         blurb:'What measurably changes once they\u2019re solved.' },
+  CE: { letter:'C·E', name:'Critical Event', blurb:'Timing, stakes, and what\u2019s forcing the clock.' },
+  D:  { letter:'D',   name:'Decision',       blurb:'Budget, backing, and who needs to be in the room.' },
+};
+const ORDER = ['S','P','I','CE','D'];
+
+const QUESTIONS = [
+  // ---------- SITUATION ----------
+  {id:'arr_now', s:'S', type:'currency', q:'What\u2019s your current ARR?', help:'Annual recurring revenue, today.', est:18},
+  {id:'arr_1y',  s:'S', type:'currency', q:'What\u2019s your ARR target for next year?', est:14},
+  {id:'arr_3y',  s:'S', type:'currency', q:'And your ARR target three years out?', est:14},
+  {id:'acv',     s:'S', type:'long', q:'What\u2019s your average contract value (ACV)?', help:'If you sell multiple products or services at different ACVs, list them all.', est:35},
+  {id:'win_rate',s:'S', type:'percent', q:'What\u2019s your win rate?', help:'% closed-won from the moment a deal enters the pipeline.', est:14},
+  {id:'pipeline',s:'S', type:'number', q:'How many deals enter your pipeline per year?', help:'Closed-won and closed-lost combined.', est:14},
+  {id:'motion',  s:'S', type:'single', q:'What\u2019s your sales motion?', options:['BDR + AE','Full-cycle AE'], est:12},
+  {id:'num_bdr', s:'S', type:'number', q:'How many BDRs do you have?', est:8, showIf:a=>a.motion==='BDR + AE'},
+  {id:'num_ae',  s:'S', type:'number', q:'How many AEs do you have?', est:8},
+  {id:'num_mktg',s:'S', type:'number', q:'How many marketing FTEs do you have?', est:8},
+  {id:'gtm',     s:'S', type:'multi', q:'What are your main GTM motions?', help:'Select all that apply.', options:['ABM','Thought leadership on LinkedIn','Volume outbound'], other:true, otherLabel:'Something else', est:20},
+  {id:'icp',     s:'S', type:'list', q:'Name at least three of your ideal customers.', help:'Real company names — the accounts you wish you had ten more of. Naming them out loud sharpens everyone\u2019s thinking.', min:3, est:45},
+  {id:'intent',  s:'S', type:'single', q:'Have you worked with intent signals before?', help:'e.g. Clay, Common Room, Claude Code.', options:['No','Yes'], otherIf:'Yes', otherLabel:'Which ones? A couple of examples.', est:18},
+  {id:'hubspot', s:'S', type:'matrix', q:'Which HubSpot licences do you have?', rows:['Marketing Hub','Sales Hub','Service Hub','Data Hub','Customer Platform'], cols:['Starter','Pro','Enterprise','None'], other:true, otherLabel:'Anything else (add-ons, seats\u2026)', est:45},
+  {id:'stack',   s:'S', type:'multi', q:'What else is in your tech stack?', help:'Select all that apply.', options:['HeyReach / Expandi / La Growth Machine','Instantly / Outreach','Clay','Claude Code / Cowork'], other:true, otherLabel:'Other tools', est:25},
+
+  // ---------- PAIN ----------
+  {id:'pain_regret', s:'P', type:'long', q:'What challenges would you regret not solving six months from now?', est:45},
+  {id:'pain_wand',   s:'P', type:'long', q:'If you could wave a magic wand and fix one thing, what would it be?', est:32},
+  {id:'pain_tried',  s:'P', type:'long', q:'What have you tried so far — and how did it go?', est:38},
+  {id:'pain_rank',   s:'P', type:'single', q:'How high does solving this sit on your priority list?', options:['#1','Top 3','Below #3'], est:10},
+  {id:'pain_metric', s:'P', type:'long', q:'Which business metric is suffering because of it?', help:'Or: if you solved it, which metric would improve the most?', est:28},
+
+  // ---------- IMPACT ----------
+  {id:'imp_metric',  s:'I', type:'long', q:'If you solve this, how much would that metric improve?', help:'A rough estimate is fine — %, absolute, or directional.', est:30},
+  {id:'imp_revenue', s:'I', type:'long', q:'And what would the impact on revenue be?', est:30},
+
+  // ---------- CRITICAL EVENT ----------
+  {id:'ce_business', s:'CE', type:'long', q:'If this isn\u2019t solved in the next 3 months, what happens to the business?', est:34},
+  {id:'ce_timeline', s:'CE', type:'single', q:'What\u2019s your timeline for getting it solved?', options:['< 8 weeks','~3 months','3\u20136 months','6+ months'], est:10},
+  {id:'ce_law',      s:'CE', type:'long', q:'Is any law, legislation, or regulation driving this timeline?', help:'If so, which one — and what\u2019s the deadline it creates? Optional.', required:false, est:24},
+
+  // ---------- DECISION ----------
+  {id:'d_budget',    s:'D', type:'single', q:'Is there budget allocated or secured for this?', help:'No need to share the number.', options:['Yes, secured','Allocated, not final','Not yet'], est:10},
+  {id:'d_funding',   s:'D', type:'single', q:'Have you recently secured funding or investment to help you scale?', options:['Yes','No'], est:10},
+  {id:'ce_role',     s:'D', type:'long', q:'If you\u2019re open to it: what would solving (or not solving) this mean for your role or position?', help:'Optional — skip if you\u2019d rather not.', required:false, est:28},
+  {id:'d_stake',     s:'D', type:'long', q:'Who else is involved in the decision?', help:'Job titles, and names if you\u2019d like. Optional.', required:false, est:30},
+  {id:'d_involve',   s:'D', type:'single', q:'Should they be involved from here on?', options:['Yes, now','Yes, but later','No, I\u2019m handling it'], est:10},
+];
+
+/* =========================================================================
+   BUILD STEP LIST  (welcome, confirm, [section + its questions]..., submit, done)
+   ========================================================================= */
+const steps = [];
+steps.push({kind:'welcome'});
+steps.push({kind:'confirm'});
+let lastSec=null;
+QUESTIONS.forEach(q=>{
+  if(q.s!==lastSec){ steps.push({kind:'section', s:q.s}); lastSec=q.s; }
+  steps.push({kind:'question', q});
+});
+steps.push({kind:'submitting'});
+steps.push({kind:'done'});
+
+const answers = {};
+// seed confirm fields
+answers._first   = CONFIG.prefill.first;
+answers._last    = CONFIG.prefill.last;
+answers._company = CONFIG.prefill.company;
+answers._email   = CONFIG.prefill.email;
+
+let i = 0;            // current step index
+let dir = 1;          // 1 forward, -1 back
+
+/* visibility (conditional questions) */
+function visible(step){
+  if(step.kind!=='question') return true;
+  const q=step.q;
+  return q.showIf ? !!q.showIf(answers) : true;
+}
+/* list of visible question steps for progress */
+function visibleQuestions(){ return steps.filter(s=>s.kind==='question' && visible(s)); }
+function answeredCountUpTo(){
+  // index of current question among visible questions
+  const vq = visibleQuestions();
+  const cur = steps[i];
+  if(cur.kind!=='question') return {n:0,total:vq.length};
+  const pos = vq.indexOf(cur);
+  return {n:pos+1, total:vq.length};
+}
+
+/* =========================================================================
+   RENDER
+   ========================================================================= */
+const stage  = document.getElementById('stage');
+const footer = document.getElementById('footer');
+const backBtn= document.getElementById('backBtn');
+const nextBtn= document.getElementById('nextBtn');
+const counter= document.getElementById('counter');
+const timeleft=document.getElementById('timeleft');
+const bar    = document.getElementById('progress-bar');
+
+function fmtTime(sec){
+  if(sec<=0) return 'almost done';
+  const m=Math.round(sec/60);
+  if(m<1) return '< 1 min left';
+  return `~${m} min left`;
+}
+
+function updateProgress(){
+  const cur=steps[i];
+  if(cur.kind==='question'){
+    const {n,total}=answeredCountUpTo();
+    counter.textContent = `${n} / ${total}`;
+    timeleft.innerHTML = `<b>&lt; 10 min</b>`;
+    bar.style.width = `${(n-1)/total*100 + 4}%`;
+  } else if(cur.kind==='welcome' || cur.kind==='confirm' || cur.kind==='section'){
+    counter.textContent=''; 
+    timeleft.innerHTML = cur.kind==='welcome' ? `<b>&lt; 10 min</b>` : '';
+    bar.style.width = cur.kind==='welcome' ? '2%' : '4%';
+  } else if(cur.kind==='submitting'){ bar.style.width='98%'; counter.textContent=''; timeleft.textContent=''; }
+  else if(cur.kind==='done'){ bar.style.width='100%'; counter.textContent=''; timeleft.textContent=''; }
+}
+
+function render(animClass){
+  const cur=steps[i];
+  // footer visibility
+  footer.style.display = (cur.kind==='question' || cur.kind==='confirm') ? 'flex' : 'none';
+  backBtn.style.visibility = (i>1 && cur.kind!=='submitting' && cur.kind!=='done') ? 'visible':'hidden';
+
+  const scr=document.createElement('div');
+  scr.className='screen '+(animClass||'enter');
+
+  if(cur.kind==='welcome')      scr.innerHTML=tplWelcome();
+  else if(cur.kind==='confirm') scr.innerHTML=tplConfirm();
+  else if(cur.kind==='section') { scr.classList.add('fill'); scr.innerHTML=tplSection(cur.s); }
+  else if(cur.kind==='question'){ scr.innerHTML=tplQuestion(cur.q); }
+  else if(cur.kind==='submitting'){ scr.classList.add('fill'); scr.innerHTML=tplSubmitting(); }
+  else if(cur.kind==='done'){ scr.classList.add('fill'); scr.innerHTML=tplDone(); }
+
+  // swap with exit anim
+  const old=stage.querySelector('.screen');
+  if(old){
+    old.className='screen '+(dir>0?'exit-up':'exit-down');
+    old.addEventListener('animationend',()=>old.remove(),{once:true});
+  }
+  stage.appendChild(scr);
+  updateProgress();
+  wire(cur, scr);
+
+  // autofocus
+  const f=scr.querySelector('[data-autofocus]');
+  if(f) setTimeout(()=>f.focus(),120);
+
+  if(cur.kind==='submitting') runSubmit();
+}
+
+/* ---------- templates ---------- */
+function tplWelcome(){
+  const name=CONFIG.prefill.first ? `, ${escapeHtml(CONFIG.prefill.first)}`:'';
+  const co=CONFIG.prefill.company?` ${escapeHtml(CONFIG.prefill.company)} &`:'';
+  return `<div class="screen-inner center-card fill" style="background:transparent">
+    <div class="section-index">Pre-discovery intake</div>
+    <div class="big">Before we talk${name}.</div>
+    <p class="lead">A few focused questions about${co} your revenue engine, so our discovery call goes straight to what matters. We follow the SPICED framework — Situation, Pain, Impact, Critical&nbsp;Event, and Decision.</p>
+    <button class="btn btn-on-fill" id="startBtn">Start &nbsp;→</button>
+    <div class="spiced-strip">
+      <span>S</span><span>P</span><span>I</span><span>C·E</span><span>D</span>
+    </div>
+    <p style="margin-top:26px;font-size:13px;opacity:.7;font-family:var(--mono)">Takes under 10 minutes · your answers are saved as a branded report</p>
+  </div>`;
+}
+
+function tplConfirm(){
+  return `<div class="screen-inner">
+    <div class="eyebrow">Let\u2019s confirm who you are</div>
+    <div class="qtext">First, the basics.</div>
+    <p class="qhelp">We\u2019ve pre-filled what we know — just check it\u2019s right.</p>
+    <div class="confirm-grid">
+      <div class="cfield"><label>First name</label><input id="c_first" data-autofocus value="${escapeAttr(answers._first)}" placeholder="Jane"></div>
+      <div class="cfield"><label>Last name</label><input id="c_last" value="${escapeAttr(answers._last)}" placeholder="Doe"></div>
+      <div class="cfield full"><label>Company</label><input id="c_company" value="${escapeAttr(answers._company)}" placeholder="Acme Inc."></div>
+      <div class="cfield full"><label>Work email</label><input id="c_email" type="email" value="${escapeAttr(answers._email)}" placeholder="jane@acme.com"></div>
+    </div>
+    <div class="err" id="confirmErr"></div>
+  </div>`;
+}
+
+function tplSection(s){
+  const sec=SECTIONS[s];
+  const idx=ORDER.indexOf(s);
+  const strip=ORDER.map(k=>{
+    const cls = k===s?'on': (ORDER.indexOf(k)<idx?'done':'');
+    return `<span class="${cls}">${SECTIONS[k].letter}</span>`;
+  }).join('');
+  return `<div class="screen-inner center-card">
+    <div class="section-index">Section ${idx+1} of ${ORDER.length}</div>
+    <div class="big" style="font-size:clamp(40px,8vw,90px)">${sec.letter} <span style="font-size:.42em;opacity:.85;vertical-align:middle">&nbsp;${escapeHtml(sec.name)}</span></div>
+    <p class="lead">${escapeHtml(sec.blurb)}</p>
+    <button class="btn btn-on-fill" id="contBtn">Continue &nbsp;→</button>
+    <div class="spiced-strip">${strip}</div>
+  </div>`;
+}
+
+function tplQuestion(q){
+  const sec=SECTIONS[q.s];
+  const {n,total}=answeredCountUpTo();
+  let inner='';
+  if(q.type==='currency') inner=`<div class="field field-adorn"><span class="sym">€</span><input class="field-line" data-autofocus inputmode="numeric" id="inp" value="${escapeAttr(answers[q.id]||'')}" placeholder="e.g. 2,400,000"></div>`;
+  else if(q.type==='percent') inner=`<div class="field field-adorn"><input class="field-line" style="max-width:160px" data-autofocus inputmode="decimal" id="inp" value="${escapeAttr(answers[q.id]||'')}" placeholder="e.g. 22"><span class="sym">%</span></div>`;
+  else if(q.type==='number') inner=`<div class="field"><input class="field-line" data-autofocus inputmode="numeric" id="inp" value="${escapeAttr(answers[q.id]||'')}" placeholder="Type a number"></div>`;
+  else if(q.type==='long') inner=`<div class="field"><textarea class="field-area" data-autofocus id="inp" placeholder="Type your answer\u2026">${escapeHtml(answers[q.id]||'')}</textarea></div>`;
+  else if(q.type==='single') inner=tplSingle(q);
+  else if(q.type==='multi') inner=tplMulti(q);
+  else if(q.type==='matrix') inner=tplMatrix(q);
+  else if(q.type==='list') inner=tplList(q);
+
+  return `<div class="ghost">${sec.letter.replace('·','')}</div>
+  <div class="screen-inner">
+    <div class="eyebrow">${escapeHtml(sec.name)} <span class="qno">· ${n} of ${total}</span></div>
+    <div class="qtext">${escapeHtml(q.q)}${q.required===false?' <span style="color:var(--muted);font-size:.5em;vertical-align:middle">optional</span>':''}</div>
+    ${q.help?`<p class="qhelp">${escapeHtml(q.help)}</p>`:''}
+    ${inner}
+    <div class="err" id="qErr"></div>
+  </div>`;
+}
+
+function tplSingle(q){
+  const cur=answers[q.id];
+  let html='<div class="options" id="opts">';
+  q.options.forEach((o,k)=>{
+    const sel = cur===o ? 'sel':'';
+    html+=`<button class="opt ${sel}" data-val="${escapeAttr(o)}"><span class="key">${k+1}</span><span class="lbl">${escapeHtml(o)}</span><span class="check">✓</span></button>`;
+  });
+  html+='</div>';
+  if(q.otherIf){
+    const show = cur===q.otherIf;
+    html+=`<div class="other-wrap" id="otherWrap" style="margin-top:14px;display:${show?'block':'none'}">
+      <input class="other-input" id="otherInp" placeholder="${escapeAttr(q.otherLabel||'Tell us more')}" value="${escapeAttr(answers[q.id+'_other']||'')}"></div>`;
+  }
+  return html;
+}
+
+function tplMulti(q){
+  const cur = answers[q.id] || [];
+  let html='<div class="options" id="opts">';
+  q.options.forEach((o,k)=>{
+    const sel = cur.includes(o)?'sel':'';
+    html+=`<button class="opt ${sel}" data-val="${escapeAttr(o)}"><span class="key">${k+1}</span><span class="lbl">${escapeHtml(o)}</span><span class="check">✓</span></button>`;
+  });
+  html+='</div>';
+  if(q.other){
+    html+=`<div class="other-wrap" style="margin-top:14px"><input class="other-input" id="otherInp" placeholder="${escapeAttr(q.otherLabel||'Other')}" value="${escapeAttr(answers[q.id+'_other']||'')}"></div>`;
+  }
+  return html;
+}
+
+function tplMatrix(q){
+  const cur = answers[q.id] || {};
+  let html='<div class="matrix" id="matrix">';
+  q.rows.forEach(row=>{
+    html+=`<div class="mrow"><div class="mlabel">${escapeHtml(row)}</div><div class="mtier" data-row="${escapeAttr(row)}">`;
+    q.cols.forEach(col=>{
+      const sel = cur[row]===col?'sel':'';
+      html+=`<button class="tier ${sel}" data-col="${escapeAttr(col)}">${escapeHtml(col)}</button>`;
+    });
+    html+=`</div></div>`;
+  });
+  html+='</div>';
+  if(q.other){
+    html+=`<div class="other-wrap" style="margin-top:16px"><input class="other-input" id="otherInp" placeholder="${escapeAttr(q.otherLabel||'Other')}" value="${escapeAttr(answers[q.id+'_other']||'')}"></div>`;
+  }
+  return html;
+}
+
+function tplList(q){
+  const min=q.min||3;
+  const cur=answers[q.id]||[];
+  const n=Math.max(min,cur.length);
+  let rows='';
+  for(let k=0;k<n;k++){
+    rows+=`<div class="list-row"><span class="list-num">${k+1}</span><input class="list-input" ${k===0?'data-autofocus':''} value="${escapeAttr(cur[k]||'')}" placeholder="Company name"></div>`;
+  }
+  return `<div class="listbox" id="listbox" data-min="${min}">${rows}</div>
+  <button class="add-row" id="addRow" type="button">+ Add another</button>`;
+}
+
+function tplSubmitting(){
+  return `<div class="screen-inner center-card" style="text-align:center">
+    <div class="spinner"></div>
+    <div class="big" style="font-size:clamp(26px,4vw,40px)">Building your report</div>
+    <p class="substep" id="substep">Saving your answers…</p>
+  </div>`;
+}
+
+function tplDone(){
+  return `<div class="screen-inner center-card">
+    <div class="big">Thank you — that\u2019s everything.</div>
+    <p class="lead">Your responses are saved and a branded PDF is on its way to <b>${escapeHtml(answers._email||'your inbox')}</b>. We\u2019ll come to the discovery call already knowing what matters.</p>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <button class="btn btn-on-fill" id="viewReport">View your report</button>
+      <button class="btn" id="dlNow" style="background:transparent;border:1.5px solid var(--brand-contrast);color:var(--brand-contrast)">Download PDF</button>
+    </div>
+  </div>`;
+}
+
+/* =========================================================================
+   WIRING
+   ========================================================================= */
+function wire(cur, scr){
+  if(cur.kind==='welcome'){ scr.querySelector('#startBtn').onclick=()=>go(1); return; }
+  if(cur.kind==='section'){ scr.querySelector('#contBtn').onclick=()=>go(1); return; }
+  if(cur.kind==='confirm'){ /* validated in validate() */ return; }
+  if(cur.kind==='done'){
+    scr.querySelector('#viewReport').onclick=()=>{ openReport(answers._lastId); };
+    scr.querySelector('#dlNow').onclick=()=>{ buildReportNode(answers); downloadPdf(); };
+    return;
+  }
+  if(cur.kind!=='question') return;
+
+  const q=cur.q;
+
+  if(q.type==='single'){
+    scr.querySelectorAll('.opt').forEach(btn=>{
+      btn.onclick=()=>{
+        scr.querySelectorAll('.opt').forEach(b=>b.classList.remove('sel'));
+        btn.classList.add('sel');
+        answers[q.id]=btn.dataset.val;
+        const ow=scr.querySelector('#otherWrap');
+        if(q.otherIf){
+          const show = answers[q.id]===q.otherIf;
+          if(ow){ ow.style.display=show?'block':'none'; if(show) setTimeout(()=>ow.querySelector('input').focus(),80);}
+          if(show) return; // wait for them to type / press enter
+        }
+        setTimeout(()=>go(1),260);
+      };
+    });
+    const oi=scr.querySelector('#otherInp');
+    if(oi) oi.oninput=()=>answers[q.id+'_other']=oi.value;
+  }
+
+  if(q.type==='multi'){
+    scr.querySelectorAll('.opt').forEach(btn=>{
+      btn.onclick=()=>{
+        btn.classList.toggle('sel');
+        const set=new Set(answers[q.id]||[]);
+        const v=btn.dataset.val;
+        btn.classList.contains('sel')?set.add(v):set.delete(v);
+        answers[q.id]=[...set];
+      };
+    });
+    const oi=scr.querySelector('#otherInp');
+    if(oi) oi.oninput=()=>answers[q.id+'_other']=oi.value;
+  }
+
+  if(q.type==='matrix'){
+    scr.querySelectorAll('.mtier').forEach(rowEl=>{
+      const row=rowEl.dataset.row;
+      rowEl.querySelectorAll('.tier').forEach(t=>{
+        t.onclick=()=>{
+          rowEl.querySelectorAll('.tier').forEach(x=>x.classList.remove('sel'));
+          t.classList.add('sel');
+          answers[q.id]=answers[q.id]||{};
+          answers[q.id][row]=t.dataset.col;
+        };
+      });
+    });
+    const oi=scr.querySelector('#otherInp');
+    if(oi) oi.oninput=()=>answers[q.id+'_other']=oi.value;
+  }
+
+  if(['currency','percent','number','long'].includes(q.type)){
+    const inp=scr.querySelector('#inp');
+    inp.oninput=()=>{ answers[q.id]=inp.value; };
+  }
+
+  if(q.type==='list'){
+    const box=scr.querySelector('#listbox');
+    const sync=()=>{ answers[q.id]=[...box.querySelectorAll('.list-input')].map(x=>x.value.trim()).filter(Boolean); };
+    box.addEventListener('input',sync);
+    const renumber=()=>box.querySelectorAll('.list-row').forEach((r,k)=>r.querySelector('.list-num').textContent=k+1);
+    const addRow=()=>{
+      const k=box.querySelectorAll('.list-row').length;
+      const row=document.createElement('div');
+      row.className='list-row';
+      row.innerHTML=`<span class="list-num">${k+1}</span><input class="list-input" placeholder="Company name">`;
+      box.appendChild(row);
+      row.querySelector('input').focus();
+    };
+    scr.querySelector('#addRow').onclick=addRow;
+    // Enter hops to next box (or adds one) instead of advancing the form
+    box.addEventListener('keydown',e=>{
+      if(e.key!=='Enter') return;
+      e.preventDefault(); e.stopPropagation();
+      const inputs=[...box.querySelectorAll('.list-input')];
+      const idx=inputs.indexOf(e.target);
+      if(idx<inputs.length-1){ inputs[idx+1].focus(); }
+      else { addRow(); }
+    });
+  }
+}
+
+/* ---------- validation ---------- */
+function validate(){
+  const cur=steps[i];
+  if(cur.kind==='confirm'){
+    const f=document.getElementById('c_first').value.trim();
+    const l=document.getElementById('c_last').value.trim();
+    const co=document.getElementById('c_company').value.trim();
+    const em=document.getElementById('c_email').value.trim();
+    const err=document.getElementById('confirmErr');
+    if(!f||!l||!co){ err.textContent='Please fill in your name and company.'; return false; }
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){ err.textContent='That email doesn\u2019t look right.'; return false; }
+    answers._first=f; answers._last=l; answers._company=co; answers._email=em;
+    return true;
+  }
+  if(cur.kind==='question'){
+    const q=cur.q;
+    const err=document.getElementById('qErr');
+    if(q.required===false) return true;
+    let val=answers[q.id];
+    if(q.type==='multi'){ if(!val||!val.length){ err.textContent='Pick at least one (or add your own).'; return false; } return true; }
+    if(q.type==='list'){ const min=q.min||3; if(!val||val.length<min){ err.textContent=`Please name at least ${min}.`; return false; } return true; }
+    if(q.type==='matrix'){ /* allow partial; optional by nature */ return true; }
+    if(q.type==='single'){
+      if(!val){ err.textContent='Please choose an option.'; return false; }
+      if(q.otherIf && val===q.otherIf && !(answers[q.id+'_other']||'').trim()){ err.textContent='Add a quick example.'; return false; }
+      return true;
+    }
+    if(!val || !String(val).trim()){ err.textContent='This one\u2019s required.'; return false; }
+    return true;
+  }
+  return true;
+}
+
+/* ---------- navigation ---------- */
+function go(d){
+  if(d>0 && !validate()) return;
+  dir=d;
+  let next=i+d;
+  // skip invisible questions
+  while(steps[next] && !visible(steps[next])) next+=d;
+  if(next<0) next=0;
+  if(next>=steps.length) next=steps.length-1;
+  i=next;
+  render(d>0?'enter':'enter-down');
+}
+
+backBtn.onclick=()=>go(-1);
+nextBtn.onclick=()=>go(1);
+
+/* keyboard */
+document.addEventListener('keydown',e=>{
+  if(document.getElementById('report-root').style.display==='block') return;
+  const cur=steps[i];
+  const tag=(e.target.tagName||'').toLowerCase();
+
+  if(e.key==='Enter'){
+    if(tag==='textarea' && !(e.metaKey||e.ctrlKey)) return; // newline in textarea
+    e.preventDefault();
+    if(cur.kind==='welcome'){ go(1); return; }
+    if(cur.kind==='section'){ go(1); return; }
+    go(1); return;
+  }
+  // number keys for single/multi select
+  if(cur.kind==='question' && /^[1-9]$/.test(e.key) && tag!=='input' && tag!=='textarea'){
+    const opts=document.querySelectorAll('#opts .opt');
+    const idx=parseInt(e.key,10)-1;
+    if(opts[idx]){ opts[idx].click(); }
+  }
+});
+
+/* =========================================================================
+   SUBMIT  -> save (Supabase) -> PDF -> email
+   ========================================================================= */
+function buildPayload(){
+  const labelled={};
+  QUESTIONS.forEach(q=>{
+    let v=answers[q.id];
+    if(q.type==='multi'){ v=[...(v||[])]; if(answers[q.id+'_other']) v.push(answers[q.id+'_other']); }
+    if(q.type==='matrix'){ v=answers[q.id]||{}; if(answers[q.id+'_other']) v._other=answers[q.id+'_other']; }
+    if(q.otherIf && answers[q.id]===q.otherIf){ v=`${v} — ${answers[q.id+'_other']||''}`; }
+    labelled[q.id]={q:q.q, section:q.s, value:v};
+  });
+  return {
+    client_slug: CONFIG.clientSlug,
+    brand_color: BRAND_HEX,
+    contact_first: answers._first,
+    contact_last: answers._last,
+    company: answers._company,
+    email: answers._email,
+    payload: labelled,
+    submitted_at: new Date().toISOString()
+  };
+}
+
+async function runSubmit(){
+  const sub=document.getElementById('substep');
+  const data=buildPayload();
+  let id=null;
+
+  // 1. save
+  if(sb){
+    try{
+      const {data:row,error}=await sb.from(CONFIG.TABLE).insert(data).select('id').single();
+      if(error) throw error;
+      id=row.id;
+    }catch(e){ console.warn('Save failed',e); }
+  } else {
+    console.info('Supabase not configured — running in demo mode (no save).');
+  }
+  answers._lastId=id;
+
+  // 2. PDF
+  if(sub) sub.textContent='Formatting your branded PDF…';
+  buildReportNode(answers);
+  let pdfBase64=null;
+  try{ pdfBase64 = await pdfAsBase64(); }catch(e){ console.warn('PDF build failed',e); }
+
+  // 3. email (serverless)
+  if(sub) sub.textContent='Sending it to your inbox…';
+  if(pdfBase64 && CONFIG.EMAIL_ENDPOINT){
+    try{
+      await fetch(CONFIG.EMAIL_ENDPOINT,{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          to:answers._email, name:answers._first, company:answers._company,
+          brand:BRAND_HEX, submissionId:id, pdfBase64
+        })
+      });
+    }catch(e){ console.info('Email endpoint not reachable yet (deploy /api/send-report).',e); }
+  }
+
+  setTimeout(()=>{ i=steps.length-1; render('enter'); },650);
+}
+
+/* =========================================================================
+   REPORT (live + PDF)
+   ========================================================================= */
+function valToHtml(q, entry){
+  let v=entry.value;
+  if(q.type==='matrix'){
+    const obj=v||{}; const parts=[];
+    q.rows.forEach(r=>{ if(obj[r]&&obj[r]!=='None') parts.push(`${r}: ${obj[r]}`); });
+    if(obj._other) parts.push(`Other: ${obj._other}`);
+    return parts.length? parts.map(p=>`<span class="tag">${escapeHtml(p)}</span>`).join('') : `<span class="a empty">Not specified</span>`;
+  }
+  if(q.type==='multi'){
+    const arr=v||[]; return arr.length? arr.map(x=>`<span class="tag">${escapeHtml(x)}</span>`).join('') : `<span class="a empty">None selected</span>`;
+  }
+  if(q.type==='list'){
+    const arr=v||[]; return arr.length? arr.map(x=>`<span class="tag">${escapeHtml(x)}</span>`).join('') : `<span class="a empty">None given</span>`;
+  }
+  if(v===undefined||v===null||String(v).trim()===''){ return `<span class="a empty">No answer</span>`; }
+  let prefix='', suffix='';
+  if(q.type==='currency') prefix='€ ';
+  if(q.type==='percent') suffix=' %';
+  return `<div class="a">${prefix}${escapeHtml(String(v))}${suffix}</div>`;
+}
+
+function buildReportNode(a){
+  const root=document.getElementById('report');
+  const dateStr=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+  let body='';
+  ORDER.forEach(secKey=>{
+    const sec=SECTIONS[secKey];
+    const qs=QUESTIONS.filter(q=>q.s===secKey && (!q.showIf || q.showIf(a)));
+    let rows='';
+    qs.forEach(q=>{
+      const entry={value: a[q.id], q:q.q};
+      // fold "other" into value where relevant
+      rows+=`<div class="qa"><div class="q">${escapeHtml(q.q)}</div>${valToHtml(q,entry)}</div>`;
+    });
+    body+=`<div class="rsection"><h2><span class="ltr">${sec.letter.replace('·','')}</span>${escapeHtml(sec.name)}</h2>${rows}</div>`;
+  });
+  root.innerHTML=`
+    <div class="report-head">
+      <div class="kicker">GTM Collective · Pre-discovery intake</div>
+      <h1>${escapeHtml(a._company||'Your company')}</h1>
+      <div class="sub">${escapeHtml((a._first||'')+' '+(a._last||''))} · ${escapeHtml(a._email||'')} · ${dateStr}</div>
+    </div>
+    <div class="report-body">${body}</div>
+    <div class="report-foot"><span>SPICED framework · Winning by Design</span><span>gtmcollective.ai</span></div>`;
+}
+
+function pdfOpts(){
+  return {
+    margin:[0,0,0,0],
+    filename:`GTM-intake-${(answers._company||'report').replace(/\s+/g,'-')}.pdf`,
+    image:{type:'jpeg',quality:.96},
+    html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff'},
+    jsPDF:{unit:'px',format:[820, 1160],orientation:'portrait'},
+    pagebreak:{mode:['css','legacy']}
+  };
+}
+function downloadPdf(){ html2pdf().set(pdfOpts()).from(document.getElementById('report')).save(); }
+function pdfAsBase64(){
+  return html2pdf().set(pdfOpts()).from(document.getElementById('report')).outputPdf('datauristring')
+    .then(uri=>uri.split(',')[1]);
+}
+
+/* report-only mode (?report=<id>) */
+async function openReport(id){
+  document.getElementById('report-root').style.display='block';
+  document.getElementById('dlPdf').onclick=downloadPdf;
+  if(id && sb){
+    try{
+      const {data,error}=await sb.from(CONFIG.TABLE).select('*').eq('id',id).single();
+      if(error) throw error;
+      applyBrand(data.brand_color||BRAND_HEX);
+      const a={_first:data.contact_first,_last:data.contact_last,_company:data.company,_email:data.email};
+      Object.entries(data.payload||{}).forEach(([k,v])=>{ a[k]=v.value; });
+      buildReportNode(a);
+      return;
+    }catch(e){ console.warn('Could not load report',e); }
+  }
+  // fallback: current session answers
+  buildReportNode(answers);
+}
+
+/* =========================================================================
+   HELPERS
+   ========================================================================= */
+function escapeHtml(s){ return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function escapeAttr(s){ return escapeHtml(s); }
+
+/* =========================================================================
+   BOOT
+   ========================================================================= */
+if(P.get('report')!==null){
+  // report view mode
+  openReport(P.get('report'));
+} else {
+  render('enter');
+}
+</script>
+</body>
+</html>
