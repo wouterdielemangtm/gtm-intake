@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GTM Collective — Intake link generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Questrial&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#120E19;
+  --orange:#F87B22;
+  --paper:#ffffff;
+  --muted:#6b6675;
+  --line:#e9e7ee;
+  --field-bg:#f7f6f9;
+  --display:"Questrial","Century Gothic",sans-serif;
+  --body:"DM Sans",sans-serif;
+  --mono:"DM Mono",monospace;
+  --ease:cubic-bezier(.22,.61,.36,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--body);color:var(--ink);background:#f4f3f6;-webkit-font-smoothing:antialiased;padding:40px 20px;line-height:1.5}
+.wrap{max-width:920px;margin:0 auto}
+.head{display:flex;align-items:center;gap:11px;margin-bottom:6px}
+.head .dot{width:11px;height:11px;border-radius:50%;background:var(--orange)}
+.head .name{font-family:var(--display);font-size:15px}
+.head .name b{font-weight:400}
+h1{font-family:var(--display);font-size:34px;font-weight:400;letter-spacing:-.01em;margin:14px 0 6px}
+.sub{color:var(--muted);font-size:15px;margin-bottom:30px;max-width:620px}
+
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start}
+@media(max-width:760px){.grid{grid-template-columns:1fr}}
+
+.card{background:#fff;border-radius:18px;padding:28px;box-shadow:0 12px 40px rgba(18,14,25,.06)}
+.card h2{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:20px;font-weight:500}
+
+.field{margin-bottom:16px}
+.field label{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.field input{width:100%;border:2px solid var(--line);border-radius:11px;background:var(--field-bg);font-size:16px;padding:12px 14px;color:var(--ink);transition:border-color .18s var(--ease),background .18s}
+.field input:focus{outline:none;border-color:var(--orange);background:#fff}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+.hexrow{display:flex;gap:10px;align-items:stretch}
+.hexrow input[type=color]{width:54px;height:48px;padding:4px;border:2px solid var(--line);border-radius:11px;background:#fff;cursor:pointer;flex:none}
+.hexrow .hexwrap{flex:1;position:relative;display:flex;align-items:center}
+.hexrow .hash{position:absolute;left:14px;color:var(--muted);font-family:var(--mono);font-size:16px}
+.hexrow .hexwrap input{padding-left:30px;font-family:var(--mono);text-transform:uppercase}
+
+.hint{font-size:12.5px;color:var(--muted);margin-top:-8px;margin-bottom:16px}
+
+/* preview */
+.preview-shell{border:2px solid var(--line);border-radius:14px;overflow:hidden}
+.pv-bar{height:6px;background:var(--line)}
+.pv-bar > div{height:100%;width:42%;background:var(--bc,#F87B22);transition:background .2s}
+.pv-body{padding:22px 22px 24px}
+.pv-eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--bc,#F87B22);margin-bottom:10px;transition:color .2s}
+.pv-q{font-family:var(--display);font-size:20px;line-height:1.15;margin-bottom:16px}
+.pv-pills{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap}
+.pv-pill{border:2px solid var(--line);border-radius:10px;padding:8px 14px;font-size:13px;color:var(--muted)}
+.pv-pill.on{background:var(--bc-tint,rgba(248,123,34,.16));border-color:var(--bc,#F87B22);color:var(--ink)}
+.pv-actions{display:flex;align-items:center;gap:12px}
+.pv-btn{background:var(--bc,#F87B22);color:var(--bc-contrast,#fff);border:0;border-radius:10px;padding:11px 22px;font-size:14px;font-weight:500;transition:background .2s,color .2s}
+.pv-section{margin-top:16px;border-radius:12px;background:var(--bc,#F87B22);color:var(--bc-contrast,#fff);padding:16px 18px;transition:background .2s,color .2s}
+.pv-section .l{font-family:var(--display);font-size:26px}
+.pv-section .n{font-size:13px;opacity:.9}
+.swatch-meta{display:flex;align-items:center;gap:10px;margin-top:14px;font-size:12.5px;color:var(--muted);font-family:var(--mono)}
+.swatch{width:18px;height:18px;border-radius:5px;border:1px solid var(--line)}
+
+/* output */
+.outbox{margin-top:24px}
+.urlbox{display:flex;gap:10px;align-items:stretch}
+.urlbox textarea{flex:1;border:2px solid var(--line);border-radius:11px;background:var(--field-bg);font-family:var(--mono);font-size:12.5px;padding:12px 14px;color:var(--ink);resize:none;min-height:74px;line-height:1.45}
+.urlbox textarea:focus{outline:none;border-color:var(--orange)}
+.btn{border:0;border-radius:11px;background:var(--ink);color:#fff;font-size:14px;font-weight:500;padding:0 20px;cursor:pointer;transition:filter .15s,transform .1s;white-space:nowrap;display:inline-flex;align-items:center;gap:8px}
+.btn:hover{filter:brightness(1.15)}
+.btn:active{transform:scale(.97)}
+.btn.copy{background:var(--orange);color:#120E19;min-width:108px;justify-content:center}
+.btn.copy.done{background:#1d9d63;color:#fff}
+.btn-row{display:flex;gap:10px;margin-top:12px}
+.btn.ghost{background:transparent;border:2px solid var(--line);color:var(--ink)}
+.btn.ghost:hover{border-color:var(--orange);filter:none}
+.err{color:#c83a3a;font-size:13px;margin-top:8px;min-height:16px}
+.note{font-size:12.5px;color:var(--muted);margin-top:18px;line-height:1.5}
+.note code{font-family:var(--mono);background:var(--field-bg);padding:1px 5px;border-radius:4px;font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head"><span class="dot"></span><span class="name"><b>GTM</b> Collective</span></div>
+  <h1>Intake link generator</h1>
+  <p class="sub">Fill in the prospect's details and their brand color, preview how the intake will look, then copy a ready-to-send link. No hex/encoding fiddling.</p>
+
+  <div class="grid">
+    <!-- LEFT: inputs -->
+    <div class="card">
+      <h2>Client details</h2>
+
+      <div class="field">
+        <label>Company name</label>
+        <input id="company" placeholder="Howspace" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>Client slug <span style="text-transform:none;letter-spacing:0">(internal — auto)</span></label>
+        <input id="slug" placeholder="howspace" autocomplete="off">
+      </div>
+      <p class="hint">Lowercase id saved with the submission, for filtering later. Auto-filled from company; edit if you like.</p>
+
+      <div class="field">
+        <label>Brand color</label>
+        <div class="hexrow">
+          <input type="color" id="picker" value="#F87B22">
+          <div class="hexwrap"><span class="hash">#</span><input id="hex" value="F87B22" maxlength="6" autocomplete="off"></div>
+        </div>
+      </div>
+      <p class="hint">Paste their hex (with or without #), or use the picker. Grab it from their logo with macOS Digital Color Meter.</p>
+
+      <div class="row2">
+        <div class="field"><label>First name</label><input id="first" placeholder="Jane" autocomplete="off"></div>
+        <div class="field"><label>Last name</label><input id="last" placeholder="Doe" autocomplete="off"></div>
+      </div>
+      <div class="field"><label>Work email</label><input id="email" type="email" placeholder="jane@howspace.com" autocomplete="off"></div>
+      <p class="hint">Names + email pre-fill the intro screen — the prospect just confirms.</p>
+    </div>
+
+    <!-- RIGHT: preview + output -->
+    <div class="card">
+      <h2>Live preview</h2>
+      <div class="preview-shell" id="pv">
+        <div class="pv-bar"><div></div></div>
+        <div class="pv-body">
+          <div class="pv-eyebrow">Situation · 3 of 29</div>
+          <div class="pv-q">What's your current ARR?</div>
+          <div class="pv-pills">
+            <span class="pv-pill on">BDR + AE</span>
+            <span class="pv-pill">Full-cycle AE</span>
+          </div>
+          <div class="pv-actions"><button class="pv-btn">OK ↵</button></div>
+          <div class="pv-section"><span class="l">P</span> <span class="n">· Pain</span></div>
+        </div>
+      </div>
+      <div class="swatch-meta">
+        <span class="swatch" id="sw"></span>
+        <span id="swtext">#F87B22 · light text</span>
+      </div>
+
+      <div class="outbox">
+        <h2 style="margin-top:24px">Shareable link</h2>
+        <div class="urlbox">
+          <textarea id="url" readonly></textarea>
+          <button class="btn copy" id="copyBtn">Copy</button>
+        </div>
+        <div class="err" id="err"></div>
+        <div class="btn-row">
+          <button class="btn ghost" id="openBtn">Open to test ↗</button>
+        </div>
+        <p class="note">Don't paste the raw URL into your email — hyperlink it behind text like <code>Complete your 10-minute intake →</code>, or run it through a shortener. The link auto-points at whatever domain this page is hosted on, so it'll keep working when <code>gtmcollective.ai</code> goes live.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:24px">
+    <h2>Report link</h2>
+    <p class="note" style="margin-top:-8px;margin-bottom:18px">After a prospect submits, grab the row's <code>id</code> from Supabase (Table Editor → <code>intake_submissions</code>) and paste it here to get the branded, revisitable report link. It renders in <em>that submission's</em> saved brand color automatically.</p>
+    <div class="field">
+      <label>Submission ID</label>
+      <input id="rid" placeholder="a3243785-ea69-4d84-8b2f-bf69143e3bb2" autocomplete="off">
+    </div>
+    <div class="urlbox">
+      <textarea id="rurl" readonly></textarea>
+      <button class="btn copy" id="rcopyBtn">Copy</button>
+    </div>
+    <div class="err" id="rerr"></div>
+    <div class="btn-row">
+      <button class="btn ghost" id="ropenBtn">Open report ↗</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Base = wherever this page is hosted (future-proof for custom domain); fallback to current Vercel URL.
+const BASE = (location.origin && location.origin.startsWith('http'))
+  ? location.origin + '/'
+  : 'https://gtm-intake.vercel.app/';
+
+const $ = id => document.getElementById(id);
+const els = ['company','slug','hex','first','last','email'].map($);
+const picker=$('picker'), pv=$('pv'), url=$('url'), err=$('err'),
+      sw=$('sw'), swtext=$('swtext'), copyBtn=$('copyBtn');
+
+let slugEdited=false;
+$('slug').addEventListener('input',()=>{slugEdited=true; update();});
+$('company').addEventListener('input',()=>{
+  if(!slugEdited){ $('slug').value = slugify($('company').value); }
+  update();
+});
+
+function slugify(s){ return (s||'').toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,''); }
+
+// hex <-> picker sync
+$('hex').addEventListener('input',()=>{
+  let h=$('hex').value.replace(/[^0-9a-fA-F]/g,'').slice(0,6);
+  $('hex').value=h.toUpperCase();
+  if(/^([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(h)){ picker.value = '#'+expand(h); }
+  update();
+});
+picker.addEventListener('input',()=>{ $('hex').value=picker.value.replace('#','').toUpperCase(); update(); });
+
+function expand(h){ return h.length===3 ? h.split('').map(c=>c+c).join('') : h; }
+function hexToRgb(h){ h=expand(h); const n=parseInt(h,16); return {r:(n>>16)&255,g:(n>>8)&255,b:n&255}; }
+function luminance({r,g,b}){ const a=[r,g,b].map(v=>{v/=255; return v<=.03928? v/12.92 : Math.pow((v+.055)/1.055,2.4);}); return .2126*a[0]+.7152*a[1]+.0722*a[2]; }
+
+[...els, picker].forEach(el=>el.addEventListener('input',update));
+
+function update(){
+  let h=$('hex').value.replace(/[^0-9a-fA-F]/g,'');
+  const validHex = /^([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(h);
+  const useHex = validHex ? expand(h) : 'F87B22';
+  const rgb=hexToRgb(useHex);
+  const contrast = luminance(rgb) > .55 ? '#120E19' : '#ffffff';
+  const tint = `rgba(${rgb.r},${rgb.g},${rgb.b},.16)`;
+
+  // paint preview
+  pv.style.setProperty('--bc', '#'+useHex);
+  pv.style.setProperty('--bc-contrast', contrast);
+  pv.style.setProperty('--bc-tint', tint);
+  sw.style.background = '#'+useHex;
+  swtext.textContent = `#${useHex.toUpperCase()} · ${contrast==='#ffffff'?'light':'dark'} text`;
+
+  // build URL
+  const p=new URLSearchParams();
+  const slug=$('slug').value.trim();
+  const company=$('company').value.trim();
+  const first=$('first').value.trim();
+  const last=$('last').value.trim();
+  const email=$('email').value.trim();
+  if(slug) p.set('client', slug);
+  if(validHex) p.set('brand', useHex.toUpperCase());
+  if(first) p.set('first', first);
+  if(last) p.set('last', last);
+  if(company) p.set('company', company);
+  if(email) p.set('email', email);
+
+  const qs=p.toString();
+  url.value = BASE + (qs ? '?'+qs : '');
+
+  // gentle validation messages (non-blocking)
+  let msg='';
+  if(!validHex && h.length) msg='Hex needs 3 or 6 characters (0-9, A-F).';
+  else if(email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) msg='That email looks off — the link still works, but check it.';
+  err.textContent=msg;
+
+  copyBtn.classList.remove('done'); copyBtn.textContent='Copy';
+}
+
+copyBtn.addEventListener('click',async()=>{
+  try{ await navigator.clipboard.writeText(url.value); }
+  catch{ url.select(); document.execCommand('copy'); }
+  copyBtn.classList.add('done'); copyBtn.textContent='Copied ✓';
+  setTimeout(()=>{ copyBtn.classList.remove('done'); copyBtn.textContent='Copy'; },1800);
+});
+$('openBtn').addEventListener('click',()=>{ window.open(url.value,'_blank'); });
+
+update();
+
+// ---- Report link ----
+const rid=$('rid'), rurl=$('rurl'), rerr=$('rerr'), rcopyBtn=$('rcopyBtn');
+function updateReport(){
+  const id=rid.value.trim();
+  const valid=/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id);
+  rurl.value = id ? BASE + '?report=' + encodeURIComponent(id) : '';
+  rerr.textContent = (id && !valid) ? 'That doesn\u2019t look like a full submission ID (UUID) — double-check you copied the whole id.' : '';
+  rcopyBtn.classList.remove('done'); rcopyBtn.textContent='Copy';
+}
+rid.addEventListener('input',updateReport);
+rcopyBtn.addEventListener('click',async()=>{
+  if(!rurl.value) return;
+  try{ await navigator.clipboard.writeText(rurl.value); }catch{ rurl.select(); document.execCommand('copy'); }
+  rcopyBtn.classList.add('done'); rcopyBtn.textContent='Copied ✓';
+  setTimeout(()=>{ rcopyBtn.classList.remove('done'); rcopyBtn.textContent='Copy'; },1800);
+});
+$('ropenBtn').addEventListener('click',()=>{ if(rurl.value) window.open(rurl.value,'_blank'); });
+updateReport();
+</script>
+</body>
+</html>
