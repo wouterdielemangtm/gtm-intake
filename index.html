@@ -519,12 +519,15 @@ function render(animClass){
   else if(cur.kind==='submitting'){ scr.classList.add('fill'); scr.innerHTML=tplSubmitting(); }
   else if(cur.kind==='done'){ scr.classList.add('fill'); scr.innerHTML=tplDone(); }
 
-  // swap with exit anim
-  const old=stage.querySelector('.screen');
-  if(old){
-    old.className='screen '+(dir>0?'exit-up':'exit-down');
-    old.addEventListener('animationend',()=>old.remove(),{once:true});
-  }
+  // swap: exit + guarantee removal of EVERY existing screen
+  // (querySelector-first was leaving a screen behind on fast nav -> overlap bug)
+  [...stage.querySelectorAll('.screen')].forEach(old=>{
+    old.classList.remove('enter','enter-down');
+    old.classList.add(dir>0?'exit-up':'exit-down');
+    const kill=()=>old.remove();
+    old.addEventListener('animationend',kill,{once:true});
+    setTimeout(kill,450); // fallback if animationend doesn't fire
+  });
   stage.appendChild(scr);
   updateProgress();
   wire(cur, scr);
