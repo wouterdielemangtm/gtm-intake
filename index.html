@@ -73,6 +73,14 @@ input,textarea{font-family:inherit}
 #timeleft{font-family:var(--mono);font-size:12.5px;color:var(--muted)}
 #timeleft b{color:var(--brand);font-weight:500}
 
+/* fixed agency mark — always GTM Collective orange, regardless of client brand */
+#agency-mark{
+  position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:33;
+  font-family:var(--mono);font-size:11px;letter-spacing:.06em;
+  color:var(--gtm-orange);opacity:.92;pointer-events:none;white-space:nowrap;
+}
+#agency-mark b{font-family:var(--display);font-weight:400;letter-spacing:.02em}
+
 /* stage: holds one screen at a time */
 #stage{flex:1;position:relative;overflow:hidden}
 .screen{
@@ -290,8 +298,8 @@ input,textarea{font-family:inherit}
 
 <div id="topbar">
   <div class="brandmark">
-    <span class="dot"></span>
-    <span class="name" id="brandname"><b>GTM</b> Collective</span>
+    <span class="dot" id="branddot"></span>
+    <span class="name" id="brandname">GTM Collective</span>
   </div>
   <div class="meta-right">
     <span id="counter"></span>
@@ -308,6 +316,8 @@ input,textarea{font-family:inherit}
   <button class="btn" id="nextBtn">OK <span style="opacity:.7">↵</span></button>
   <span class="kbd-hint">press <kbd>Enter ↵</kbd></span>
 </div>
+
+<div id="agency-mark">Powered by <b>GTM Collective</b></div>
 
 <!-- live report view -->
 <div id="report-root">
@@ -368,7 +378,6 @@ function applyBrand(hex){
   root.setProperty('--brand-tint-strong', `rgba(${rgb.r},${rgb.g},${rgb.b},.16)`);
 }
 applyBrand(BRAND_HEX);
-if(CONFIG.clientName) document.getElementById('brandname').innerHTML = '<b>GTM</b> Collective';
 
 /* ---------- Supabase client (graceful if unconfigured) ---------- */
 let sb=null;
@@ -481,6 +490,8 @@ const nextBtn= document.getElementById('nextBtn');
 const counter= document.getElementById('counter');
 const timeleft=document.getElementById('timeleft');
 const bar    = document.getElementById('progress-bar');
+const brandnameEl=document.getElementById('brandname');
+const branddotEl =document.getElementById('branddot');
 
 function fmtTime(sec){
   if(sec<=0) return 'almost done';
@@ -530,6 +541,14 @@ function render(animClass){
     setTimeout(kill,450); // fallback if animationend doesn't fire
   });
   stage.appendChild(scr);
+
+  // Header: show the CLIENT'S name in their brand color.
+  // On brand-filled screens (section dividers, submitting, done) flip to the contrast color so it stays legible.
+  const isFill = scr.classList.contains('fill');
+  const label = (answers._company && answers._company.trim()) ? answers._company.trim() : 'GTM Collective';
+  brandnameEl.textContent = label;
+  brandnameEl.style.color   = isFill ? 'var(--brand-contrast)' : 'var(--brand)';
+  branddotEl.style.background = isFill ? 'var(--brand-contrast)' : 'var(--brand)';
   updateProgress();
   wire(cur, scr);
 
