@@ -389,20 +389,21 @@ const ORDER = ['S','P','I','CE','D'];
 
 const QUESTIONS = [
   // ---------- SITUATION ----------
-  {id:'arr_now', s:'S', type:'currency', q:'What\u2019s your current ARR?', help:'Annual recurring revenue, today.', est:18},
-  {id:'arr_1y',  s:'S', type:'currency', q:'What\u2019s your ARR target for next year?', est:14},
-  {id:'arr_3y',  s:'S', type:'currency', q:'And your ARR target three years out?', est:14},
-  {id:'acv',     s:'S', type:'long', q:'What\u2019s your average contract value (ACV)?', help:'If you sell multiple products or services at different ACVs, list them all.', est:35},
+  {id:'arr_now', s:'S', type:'currency', q:'What\u2019s your current ARR?', help:'Annual recurring revenue today, in \u20ac millions (e.g. 2.5 = \u20ac2.5M).', est:18},
+  {id:'arr_1y',  s:'S', type:'currency', q:'What\u2019s your ARR target for next year?', help:'In \u20ac millions.', est:14},
+  {id:'arr_3y',  s:'S', type:'currency', q:'And your ARR target three years out?', help:'In \u20ac millions.', est:14},
+  {id:'acv',     s:'S', type:'long', q:'What\u2019s your annual contract value (ACV)?', help:'If you sell multiple products or services at different ACVs, list them all.', est:35},
   {id:'win_rate',s:'S', type:'percent', q:'What\u2019s your win rate?', help:'% closed-won from the moment a deal enters the pipeline.', est:14},
   {id:'pipeline',s:'S', type:'number', q:'How many deals enter your pipeline per year?', help:'Closed-won and closed-lost combined.', est:14},
   {id:'motion',  s:'S', type:'single', q:'What\u2019s your sales motion?', options:['BDR + AE','Full-cycle AE'], est:12},
   {id:'num_bdr', s:'S', type:'number', q:'How many BDRs do you have?', est:8, showIf:a=>a.motion==='BDR + AE'},
   {id:'num_ae',  s:'S', type:'number', q:'How many AEs do you have?', est:8},
   {id:'num_mktg',s:'S', type:'number', q:'How many marketing FTEs do you have?', est:8},
+  {id:'num_revops',s:'S', type:'number', q:'How many RevOps managers do you have?', est:8},
   {id:'gtm',     s:'S', type:'multi', q:'What are your main GTM motions?', help:'Select all that apply.', options:['ABM','Thought leadership on LinkedIn','Volume outbound'], other:true, otherLabel:'Something else', est:20},
   {id:'icp',     s:'S', type:'list', q:'Name at least three of your ideal customers.', help:'Real company names — the accounts you wish you had ten more of. Naming them out loud sharpens everyone\u2019s thinking.', min:3, est:45},
-  {id:'intent',  s:'S', type:'single', q:'Have you worked with intent signals before?', help:'e.g. Clay, Common Room, Claude Code.', options:['No','Yes'], otherIf:'Yes', otherLabel:'Which ones? A couple of examples.', est:18},
-  {id:'hubspot', s:'S', type:'matrix', q:'Which HubSpot licences do you have?', rows:['Marketing Hub','Sales Hub','Service Hub','Data Hub','Customer Platform'], cols:['Starter','Pro','Enterprise','None'], other:true, otherLabel:'Anything else (add-ons, seats\u2026)', est:45},
+  {id:'intent',  s:'S', type:'single', q:'Have you worked with intent signals before?', help:'e.g. Clay, Common Room, Claude Code.', options:['No','Yes'], otherIf:'Yes', otherLabel:'Which signals, and how do you use them? Examples welcome.', est:18},
+  {id:'hubspot', s:'S', type:'matrix', q:'Which HubSpot licences do you have?', help:'Find these in HubSpot: top-right \u2192 Account & Billing \u2192 Subscriptions.', rows:['Marketing Hub','Sales Hub','Service Hub','Data Hub','Customer Platform'], cols:['Starter','Pro','Enterprise','None'], other:true, otherLabel:'Anything else (add-ons, seats\u2026)', est:45},
   {id:'stack',   s:'S', type:'multi', q:'What else is in your tech stack?', help:'Select all that apply.', options:['HeyReach / Expandi / La Growth Machine','Instantly / Outreach','Clay','Claude Code / Cowork'], other:true, otherLabel:'Other tools', est:25},
 
   // ---------- PAIN ----------
@@ -423,7 +424,7 @@ const QUESTIONS = [
 
   // ---------- DECISION ----------
   {id:'d_budget',    s:'D', type:'single', q:'Is there budget allocated or secured for this?', help:'No need to share the number.', options:['Yes, secured','Allocated, not final','Not yet'], est:10},
-  {id:'d_funding',   s:'D', type:'single', q:'Have you recently secured funding or investment to help you scale?', options:['Yes','No'], est:10},
+  {id:'d_funding',   s:'D', type:'single', q:'Have you recently secured funding or investment to help you scale?', options:['Yes','No'], otherIf:'Yes', otherOptional:true, otherLabel:'When did you raise, and roughly how much? (optional)', est:14},
   {id:'ce_role',     s:'D', type:'long', q:'If you\u2019re open to it: what would solving (or not solving) this mean for your role or position?', help:'Optional — skip if you\u2019d rather not.', required:false, est:28},
   {id:'d_stake',     s:'D', type:'long', q:'Who else is involved in the decision?', help:'Job titles, and names if you\u2019d like. Optional.', required:false, est:30},
   {id:'d_involve',   s:'D', type:'single', q:'Should they be involved from here on?', options:['Yes, now','Yes, but later','No, I\u2019m handling it'], est:10},
@@ -590,7 +591,7 @@ function tplQuestion(q){
   const sec=SECTIONS[q.s];
   const {n,total}=answeredCountUpTo();
   let inner='';
-  if(q.type==='currency') inner=`<div class="field field-adorn"><span class="sym">€</span><input class="field-line" data-autofocus inputmode="numeric" id="inp" value="${escapeAttr(answers[q.id]||'')}" placeholder="e.g. 2,400,000"></div>`;
+  if(q.type==='currency') inner=`<div class="field field-adorn"><span class="sym">€</span><input class="field-line" data-autofocus inputmode="decimal" id="inp" value="${escapeAttr(answers[q.id]||'')}" placeholder="e.g. 2.5"><span class="sym">M</span></div>`;
   else if(q.type==='percent') inner=`<div class="field field-adorn"><input class="field-line" style="max-width:160px" data-autofocus inputmode="decimal" id="inp" value="${escapeAttr(answers[q.id]||'')}" placeholder="e.g. 22"><span class="sym">%</span></div>`;
   else if(q.type==='number') inner=`<div class="field"><input class="field-line" data-autofocus inputmode="numeric" id="inp" value="${escapeAttr(answers[q.id]||'')}" placeholder="Type a number"></div>`;
   else if(q.type==='long') inner=`<div class="field"><textarea class="field-area" data-autofocus id="inp" placeholder="Type your answer\u2026">${escapeHtml(answers[q.id]||'')}</textarea></div>`;
@@ -803,12 +804,16 @@ function validate(){
     const err=document.getElementById('qErr');
     if(q.required===false) return true;
     let val=answers[q.id];
-    if(q.type==='multi'){ if(!val||!val.length){ err.textContent='Pick at least one (or add your own).'; return false; } return true; }
+    if(q.type==='multi'){
+      const hasOther = q.other && (answers[q.id+'_other']||'').trim();
+      if((!val||!val.length) && !hasOther){ err.textContent='Pick at least one (or add your own).'; return false; }
+      return true;
+    }
     if(q.type==='list'){ const min=q.min||3; if(!val||val.length<min){ err.textContent=`Please name at least ${min}.`; return false; } return true; }
     if(q.type==='matrix'){ /* allow partial; optional by nature */ return true; }
     if(q.type==='single'){
       if(!val){ err.textContent='Please choose an option.'; return false; }
-      if(q.otherIf && val===q.otherIf && !(answers[q.id+'_other']||'').trim()){ err.textContent='Add a quick example.'; return false; }
+      if(q.otherIf && val===q.otherIf && !q.otherOptional && !(answers[q.id+'_other']||'').trim()){ err.textContent='Add a quick example.'; return false; }
       return true;
     }
     if(!val || !String(val).trim()){ err.textContent='This one\u2019s required.'; return false; }
